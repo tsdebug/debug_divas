@@ -1,25 +1,36 @@
-# backend/main.py
-import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from fastapi import FastAPI # type: ignore
+from pydantic import BaseModel
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langdetect import detect
 
-load_dotenv()
+# Initialize FastAPI app
+app = FastAPI(title="Gemini LangChain Backend")
 
-from auth import router as auth_router  # relative import from auth.py
+# Replace with your actual Gemini API key
+GOOGLE_API_KEY = "AIzaSyAQT1_Ne_53pkaa6lgl3ZjPSOetL7Ey-2U"
 
-app = FastAPI(title="KSHETRA Backend")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Initialize Gemini LLM via LangChain
+llm = ChatGoogleGenerativeAI(
+    model="gemini-pro",
+    google_api_key=GOOGLE_API_KEY,
+    temperature=0.7,
 )
 
-app.include_router(auth_router)
+# Request model
+class Query(BaseModel):
+    prompt: str
 
+# Root route
 @app.get("/")
 def root():
-    return {"status": "✅ KSHETRA Backend is running!"}
+    return {"message": "✅ Gemini LangChain Backend is running successfully!"}
+
+# POST endpoint for generating AI responses
+@app.post("/generate")
+def generate_text(data: Query):
+    detected_lang = detect(data.prompt)  # auto-detect language
+    # explicitly tell Gemini to respond in detected language
+    system_instruction = f"Reply only in this language: {detected_lang}. Respond in {detected_lang} no matter what."
+    prompt_with_instruction = system_instruction + "\n" + data.prompt
+    response = llm.invoke(data.prompt)
+    return {"response": response}
