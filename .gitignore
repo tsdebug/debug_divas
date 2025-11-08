@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# --- Virtual Environment ---
+# The venv folder is specific to your OS and contains thousands of files.
+# It should be ignored and recreated from requirements.txt by anyone else.
+venv/
+.venv/
+env/
+.env/
+
+# --- Python Cache & Compiled Files ---
+# These are generated automatically by Python to run code faster.
+# They are not needed in version control.
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
