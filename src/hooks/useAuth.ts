@@ -1,8 +1,10 @@
+"use client";
 import { useState, useEffect } from "react";
 import { User } from "@/lib/types";
-import { MOCK_USER } from "@/lib/constants"; // Import mock user
 
 type AuthMode = "login" | "register";
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -17,12 +19,11 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Simulate checking for an existing session
-    const storedAuth = localStorage.getItem("isAuthenticated");
-    const storedUser = localStorage.getItem("user");
-    if (storedAuth === "true" && storedUser) {
-      setIsAuthenticated(true);
+    const token = localStorage.getItem("ksh_token");
+    const storedUser = localStorage.getItem("ksh_user");
+    if (token && storedUser) {
       setUser(JSON.parse(storedUser));
+      setIsAuthenticated(true);
     }
   }, []);
 
@@ -31,63 +32,39 @@ export const useAuth = () => {
     setAuthLoading(true);
     setAuthError("");
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const endpoint = authMode === "register" ? "/auth/register" : "/auth/login";
+      const body =
+        authMode === "register"
+          ? { name, email, password, preferredLanguage, region }
+          : { email, password };
 
-    if (authMode === "register") {
-      if (!email || !password || !name) {
-        setAuthError("Please fill all required fields");
-        setAuthLoading(false);
-        return;
-      }
-      // Simulate successful registration
-      const newUser: User = {
-        id: "user-" + Date.now(),
-        name,
-        email,
-        preferredLanguage,
-        region,
-      };
-      setUser(newUser);
-      localStorage.setItem("user", JSON.stringify(newUser));
-    } else { // Login mode
-      if (!email || !password) {
-        setAuthError("Please enter email and password");
-        setAuthLoading(false);
-        return;
-      }
-      // Simulate successful login with mock user
-      setUser(MOCK_USER);
-      localStorage.setItem("user", JSON.stringify(MOCK_USER));
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Authentication failed");
+
+      const { token, user } = data;
+      localStorage.setItem("ksh_token", token);
+      localStorage.setItem("ksh_user", JSON.stringify(user));
+      setUser(user);
+      setIsAuthenticated(true);
+    } catch (err: any) {
+      setAuthError(err.message || "Something went wrong");
+    } finally {
+      setAuthLoading(false);
     }
-
-    setIsAuthenticated(true);
-    localStorage.setItem("isAuthenticated", "true");
-    setAuthLoading(false);
-  };
-
-  const handleGuestAccess = () => {
-    const guestUser: User = {
-      id: "guest",
-      name: "Guest User",
-      email: "guest@example.com",
-      preferredLanguage: "en",
-      region: "Delhi"
-    };
-    setIsAuthenticated(true);
-    setUser(guestUser);
-    localStorage.setItem("isAuthenticated", "true");
-    localStorage.setItem("user", JSON.stringify(guestUser));
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("ksh_token");
+    localStorage.removeItem("ksh_user");
     setIsAuthenticated(false);
     setUser(null);
-    setEmail("");
-    setPassword("");
-    setName("");
-    localStorage.removeItem("isAuthenticated");
-    localStorage.removeItem("user");
   };
 
   return {
@@ -108,7 +85,6 @@ export const useAuth = () => {
     region,
     setRegion,
     handleAuth,
-    handleGuestAccess,
     handleLogout,
   };
 };
