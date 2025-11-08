@@ -24,7 +24,6 @@ interface AuthFormProps {
   region: string;
   setRegion: (region: string) => void;
   onSubmit: (e: React.FormEvent) => void;
-  onGuestAccess: () => void;
 }
 
 export function AuthForm({
@@ -43,7 +42,6 @@ export function AuthForm({
   region,
   setRegion,
   onSubmit,
-  onGuestAccess,
 }: AuthFormProps) {
   return (
     // Enhanced background gradient for a more dynamic look
@@ -167,14 +165,6 @@ export function AuthForm({
               <span className="bg-background px-2 text-gray-500 font-medium">Or continue as</span> {/* Muted foreground for text */}
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 transform hover:scale-[1.005]"
-            onClick={onGuestAccess}
-          >
-            Guest User
-          </Button>
 
           <Button
             variant="link"

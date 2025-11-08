@@ -30,7 +30,6 @@ export default function HomePage() {
     region: authRegion,
     setRegion: setAuthRegion,
     handleAuth,
-    handleGuestAccess,
     handleLogout,
   } = useAuth();
 
@@ -75,7 +74,6 @@ export default function HomePage() {
         region={authRegion}
         setRegion={setAuthRegion}
         onSubmit={handleAuth}
-        onGuestAccess={handleGuestAccess}
       />
     );
   }
