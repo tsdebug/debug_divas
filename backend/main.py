@@ -4,89 +4,162 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_google_genai import ChatGoogleGenerativeAI
-
+from auth import router as auth_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from auth import router as auth_router
 
+
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
+
+@app.get("/")
+def home():
+    return {"status": "Backend running successfully"}
+
+
+
+# --- LangChain imports ---
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# --- Auth import ---
+from auth import router as auth_router
+
+# --- Load environment variables ---
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
+
+# --- Initialize FastAPI app ---
+app = FastAPI(title="KSHETRA - Localized GenAI System")
 app.include_router(auth_router, prefix="/auth")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # your frontend URL
+    allow_origins=["http://localhost:3000"],  # frontend origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# This line is for the hardcoded API key fix.
-# from dotenv import load_dotenv
-# load_dotenv()
-
-app = FastAPI()
-
-origins = ["http://localhost:3000"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# --- Local Knowledge Base ---
 local_knowledge_base = {
     "Delhi": {
         "health": {
-            "context": "Delhi's local health services include dispensaries like Mohalla Clinics, Polyclinics, and major government hospitals such as AIIMS Delhi and Safdarjung Hospital. For emergencies, dial 102.",
-            "sources": ["Delhi Health Department Website", "Mohalla Clinic Initiative"]
+            "context": (
+                "Delhi's public healthcare network includes Mohalla Clinics, Polyclinics, "
+                "and large hospitals like AIIMS Delhi and Safdarjung Hospital. "
+                "For emergencies, dial 102 or visit the nearest government facility."
+            ),
+            "sources": [
+                "Delhi Health Department Website",
+                "Mohalla Clinic Initiative"
+            ]
         },
         "transport": {
-            "context": "The public transport system in Delhi is extensive, featuring the Delhi Metro (DMRC), a large fleet of DTC buses, and auto-rickshaws. The Metro is considered the most efficient way to travel across the city.",
-            "sources": ["Delhi Metro Rail Corporation (DMRC)", "Delhi Transport Corporation (DTC)"]
+            "context": (
+                "Delhi has an advanced transport system, including the Delhi Metro (DMRC), "
+                "DTC buses, and auto-rickshaws. The Metro is considered the fastest and safest way "
+                "to travel across the city."
+            ),
+            "sources": [
+                "Delhi Metro Rail Corporation (DMRC)",
+                "Delhi Transport Corporation (DTC)"
+            ]
         }
     },
     "Mumbai": {
         "health": {
-            "context": "In Mumbai, public health services are primarily provided by BMC-run hospitals like KEM, Sion, and Nair Hospitals. A vast network of private clinics and hospitals also operates throughout the city.",
-            "sources": ["Brihanmumbai Municipal Corporation (BMC) Health Dept", "Maharashtra State Health Portal"]
+            "context": (
+                "Mumbai's public health services are primarily provided by BMC-run hospitals such as "
+                "KEM, Sion, and Nair. Numerous private clinics and hospitals also operate citywide."
+            ),
+            "sources": [
+                "Brihanmumbai Municipal Corporation (BMC) Health Dept",
+                "Maharashtra State Health Portal"
+            ]
         },
         "transport": {
-            "context": "Mumbai's public transport is dominated by its extensive local train network, which serves as the city's lifeline. Additionally, BEST buses cover routes where trains do not reach.",
-            "sources": ["Mumbai Local Railway Timetables", "BEST Bus Services Official"]
+            "context": (
+                "Mumbai's public transport is centered around its local train network, supported by "
+                "BEST buses and auto-rickshaws. The suburban railway is known as Mumbai's lifeline."
+            ),
+            "sources": [
+                "Mumbai Local Railway Timetables",
+                "BEST Bus Services Official"
+            ]
         }
     }
 }
 
-# --- MODIFIED SECTION START ---
-# We are making this function smarter with more keywords.
-
+# --- Smarter context retriever ---
 def get_local_context(region: str, query: str):
-    """
-    A smarter retrieval function for our RAG system.
-    It finds the best context and sources from our knowledge base.
-    """
     region_data = local_knowledge_base.get(region, {})
     normalized_query = query.lower()
-    
-    # Expanded keywords for better matching
-    health_keywords = ["health", "hospital", "doctor", "clinic", "emergency", "medical"]
+
+    health_keywords = ["health", "hospital", "doctor", "clinic", "emergency", "medical", "medicine"]
     transport_keywords = ["transport", "metro", "bus", "train", "travel", "commute", "route"]
-    
+
     if any(keyword in normalized_query for keyword in health_keywords):
-        return region_data.get("health", {"context": f"I do not have specific health information for {region}.", "sources": []})
-    
+        return region_data.get("health", {
+            "context": f"I do not have health info for {region}.",
+            "sources": []
+        })
+
     if any(keyword in normalized_query for keyword in transport_keywords):
-        return region_data.get("transport", {"context": f"I do not have specific transport information for {region}.", "sources": []})
-    
-    # Fallback if no keywords match
-    return {"context": f"I do not have specific information for your query about '{query}' in {region}. Please try asking about health or transport.", "sources": ["General Knowledge"]}
+        return region_data.get("transport", {
+            "context": f"I do not have transport info for {region}.",
+            "sources": []
+        })
 
-# --- MODIFIED SECTION END ---
+    return {
+        "context": f"No data found for your query about '{query}' in {region}.",
+        "sources": ["General Knowledge"]
+    }
 
+# --- LangChain prompt ---
+prompt = PromptTemplate.from_template("""
+You are *KSHETRA*, a region-aware multilingual assistant.
+
+Your tasks:
+1. Always answer ONLY in {language} (e.g., if language=Hindi, write fully in Hindi, not English or Bengali).
+2. Use only the local context provided below — do NOT invent facts.
+3. If the local context does not answer the query, say clearly in {language}:
+   "Mujhe is vishay par {region} ke liye jaankari nahi hai." (if Hindi)
+4. Be concise and helpful.
+
+---------------------
+📍 Local Context:
+{context}
+
+🧠 User Query:
+{query}
+
+💬 Final Answer (in {language}):
+""")
+
+# --- Initialize Gemini LLM ---
+llm = ChatGoogleGenerativeAI(
+    model="gemini-pro",
+    google_api_key=GOOGLE_API_KEY,
+    temperature=0,          # make responses consistent
+    max_output_tokens=256,  # keep answers concise
+)
+
+chain = prompt | llm | StrOutputParser()
+
+# --- Request/Response Models ---
 class QueryRequest(BaseModel):
     query: str
     language: str
@@ -96,43 +169,22 @@ class QueryResponse(BaseModel):
     response: str
     sources: list[str]
 
-# --- MODIFIED SECTION START ---
-# We are making the instructions to the AI much stricter.
-
-prompt = PromptTemplate.from_template(
-    """
-    You are KSHETRA, an expert AI assistant providing region-specific information.
-    Your answer MUST be based ONLY on the "Local Context" provided. Do not use any external knowledge.
-    If the context does not contain the answer, you MUST state that you don't have the specific local information.
-    Your final response MUST be written in the following language: {language}.
-
-    Local Context:
-    "{context}"
-
-    User's Question:
-    "{query}"
-
-    Helpful Answer in {language}:
-    """
-)
-# --- MODIFIED SECTION END ---
-
-# Replace "YOUR_GEMINI_API_KEY_HERE" with your actual key if you haven't already
-llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key="YOUR_GEMINI_API_KEY_HERE")
-chain = prompt | llm | StrOutputParser()
-
+# --- Endpoint for queries ---
 @app.post("/api/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
     retrieved_data = get_local_context(request.region, request.query)
     context = retrieved_data["context"]
     sources = retrieved_data["sources"]
-    ai_response = chain.invoke({
+
+    response = chain.invoke({
         "language": request.language,
         "context": context,
-        "query": request.query
+        "query": request.query,
+        "region": request.region
     })
-    return QueryResponse(response=ai_response, sources=sources)
+
+    return QueryResponse(response=response.strip(), sources=sources)
 
 @app.get("/")
 def read_root():
-    return {"status": "KSHETRA Backend is running!"}
+    return {"status": "✅ KSHETRA Backend is running!"}

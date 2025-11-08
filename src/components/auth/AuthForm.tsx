@@ -1,10 +1,11 @@
-import { Globe } from "lucide-react";
+
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LANGUAGES, REGIONS } from "@/lib/constants"; // Import constants
+import Image from "next/image";
 
 interface AuthFormProps {
   authMode: "login" | "register";
@@ -48,8 +49,15 @@ export function AuthForm({
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-t-4 border-indigo-600 rounded-lg"> {/* Stronger shadow, indigo top border */}
         <CardHeader className="text-center pb-0"> {/* Adjusted padding */}
-          <div className="mx-auto bg-linear-to-br from-indigo-200 to-purple-200 p-3 rounded-full w-20 h-20 flex items-center justify-center mb-4 transform hover:scale-105 transition-transform duration-300"> {/* Larger, gradient icon background */}
-            <Globe className="text-indigo-700 w-10 h-10" /> {/* Darker, more prominent icon */}
+          <div className="mx-auto flex rounded-full items-center justify-center mb-4 transform hover:scale-105 transition-transform duration-300 shadow-md">
+            <Image
+              src="/Kshetra-logo.png"
+              alt="KSHETRA Logo"
+              width={220} // Set the width of your logo
+              height={220} // Set the height of your logo
+              priority // Tells Next.js to load this image first
+              className="mt-1"
+            />
           </div>
           <CardTitle className="text-3xl font-extrabold text-gray-900 leading-tight"> {/* Larger, bolder title */}
             {authMode === "login" ? "Welcome to KSHETRA" : "Create Your KSHETRA Account"} {/* More engaging text */}
