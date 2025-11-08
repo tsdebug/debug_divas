@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LANGUAGES, REGIONS } from "@/lib/constants"; // Import constants
 import Image from "next/image";
+import router from "next/router";
 
 interface AuthFormProps {
   authMode: "login" | "register";
@@ -184,6 +185,7 @@ export function AuthForm({
               ? "Don't have an account? Sign Up"
               : "Already have an account? Sign In"}
           </Button>
+          <button type="button" onClick={() => router.push("/forgot-password")} className="text-sm underline">Forgot password?</button>
         </CardFooter>
       </Card>
     </div>
