@@ -3,8 +3,15 @@ from pydantic import BaseModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langdetect import detect
 
+from auth import router as auth_router  # Import your auth router
+
 # Initialize FastAPI app
 app = FastAPI(title="Gemini LangChain Backend")
+
+app = FastAPI()
+
+app.include_router(auth_router)       
+
 
 # Replace with your actual Gemini API key
 GOOGLE_API_KEY = "AIzaSyAQT1_Ne_53pkaa6lgl3ZjPSOetL7Ey-2U"
@@ -19,6 +26,27 @@ llm = ChatGoogleGenerativeAI(
 # Request model
 class Query(BaseModel):
     prompt: str
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from auth import router as auth_router
+
+app = FastAPI()
+
+# Allow frontend origin, adjust URL accordingly
+origins = [
+    "http://localhost:3000",  # your frontend URL
+    # other URLs if needed
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # or ["*"] to allow all origins (not recommended for production)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Root route
 @app.get("/")
